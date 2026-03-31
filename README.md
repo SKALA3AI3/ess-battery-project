@@ -48,6 +48,7 @@ pip install -r requirements.txt
 
 ## result
 ```/result/result.md```
+[report](https://www.notion.so/Day-2-Mini-Project-334572c71b8080529137de0ae25af28f?source=copy_link)
 
 
 ## EDA 
