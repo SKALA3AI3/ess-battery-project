@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from collections.abc import Callable
 
 import numpy as np
 from sklearn.base import clone
@@ -89,3 +90,14 @@ def evaluate_log_target_model(model, data: PreparedRegressionData) -> Experiment
     )
     return ExperimentResult(fitted_model=fitted_model, metrics=metrics)
 
+
+def evaluate_model_suite(
+    model_builders: dict[str, Callable[[], object]],
+    data: PreparedRegressionData,
+) -> dict[str, ExperimentResult]:
+    """Evaluate a named collection of models on the shared regression splits."""
+
+    results: dict[str, ExperimentResult] = {}
+    for model_name, build_model in model_builders.items():
+        results[model_name] = evaluate_log_target_model(build_model(), data)
+    return results

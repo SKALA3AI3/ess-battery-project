@@ -5,7 +5,7 @@ from __future__ import annotations
 import pandas as pd
 
 from config import TARGET_MAPE
-from evaluation import RegressionMetrics
+from evaluation import ExperimentResult, RegressionMetrics
 
 
 def build_regression_report(metrics: RegressionMetrics, *, target_mape: float = TARGET_MAPE) -> pd.DataFrame:
@@ -24,3 +24,30 @@ def build_regression_report(metrics: RegressionMetrics, *, target_mape: float = 
     ]
     return pd.DataFrame(report_rows)
 
+
+def build_model_comparison_report(
+    results: dict[str, ExperimentResult],
+    *,
+    target_mape: float = TARGET_MAPE,
+) -> pd.DataFrame:
+    """Build a one-row-per-model summary table."""
+
+    comparison_rows = []
+    for model_name, experiment_result in results.items():
+        metrics = experiment_result.metrics
+        comparison_rows.append(
+            {
+                "Model": model_name,
+                "Train (Batch 1 CV)": round(metrics.train_cv_mape, 2),
+                "Valid (Batch 1 Hold-out)": round(metrics.valid_mape, 2),
+                "Test (Batch 2)": round(metrics.test2_mape, 2),
+                "Gap (Train-Valid)": round(metrics.train_cv_mape - metrics.valid_mape, 2),
+                "Gap (Valid-Test)": round(metrics.valid_mape - metrics.test2_mape, 2),
+                "Gap (Target-Test2)": round(target_mape - metrics.test2_mape, 2),
+                "Test (Batch 3)": round(metrics.test3_mape, 2),
+                "Gap (Batch2-Batch3)": round(metrics.test2_mape - metrics.test3_mape, 2),
+                "Gap (Target-Test3)": round(target_mape - metrics.test3_mape, 2),
+            }
+        )
+
+    return pd.DataFrame(comparison_rows)

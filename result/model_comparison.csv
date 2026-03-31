@@ -1,0 +1,7 @@
+Model,Train (Batch 1 CV),Valid (Batch 1 Hold-out),Test (Batch 2),Gap (Train-Valid),Gap (Valid-Test),Gap (Target-Test2),Test (Batch 3),Gap (Batch2-Batch3),Gap (Target-Test3)
+RandomForest,7.69,6.33,38.05,1.36,-31.72,-28.95,13.4,24.65,-4.3
+LinearRegression,8.17,7.15,55.81,1.02,-48.65,-46.71,14.15,41.66,-5.05
+Ridge,10.87,9.53,37.71,1.33,-28.17,-28.61,15.15,22.55,-6.05
+Lasso,11.51,12.63,45.36,-1.12,-32.73,-36.26,17.89,27.47,-8.79
+XGBoost,8.53,8.87,41.79,-0.33,-32.92,-32.69,14.26,27.53,-5.16
+ElasticNet,10.98,10.21,38.99,0.77,-28.78,-29.89,16.11,22.88,-7.01
