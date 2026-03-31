@@ -1,8 +1,16 @@
+### 참여 인원
+- 김가은: 모델링 구축, EDA, batch 1, batch 2, batch 3 테스트
+- 박준형: 모델링 구축, batch 2 테스트, EDA
+- 송윤아: 모델링 구축, 시계열 모델링 시도, 피쳐 튜닝
+- 채희지: 모델링 구축, batch 3 테스트, 피쳐 튜닝
+
+
 # ESS 배터리 수명 예측 
 Cycle 1 - 100까지의 데이터를 보고 최종 수명인 cycle life를 예측하는 목적입니다.
 - 더 사용할 수 있는 배터리를 확인 가능합니다.
 - 배터리의 남은 수명을 예측하여 친환경적인 배터리 사용을 할 수 있습니다.
 - 배터리의 남은 수명을 예측하여 다른 회사에서 만든 배터리의 성능을 신뢰성 있게 볼 수 있는 지표가 될 수 있습니다.
+
 
 ## 프로젝트 개요
 - 데이터셋 : MIT-Stanford Battery Dataset (Severson et al., Nature Energy 2019)
@@ -11,18 +19,18 @@ Cycle 1 - 100까지의 데이터를 보고 최종 수명인 cycle life를 예측
 - 태스크 : Regression (Cycle Life 예측)
 
 
-## 파일 구조 (sample) 
+## 파일 구조
 ```
-├── data/
-│   └── README.md          
+│         
 ├── notebooks/
-│   ├── 01_EDA.ipynb
-│   ├── 02_feature_engineering.ipynb
-│   └── 03_modeling.ipynb
+│   ├── 30-ESSHealth-EDA.ipynb
 ├── src/
+│   ├── __init__.py
+│   ├── config.py
+│   ├── evaluation.py
+│   ├── models.py
 │   ├── preprocess.py
-│   ├── features.py
-│   └── train.py
+│   └── reporting.py
 ├── results/
 │   └── model_performance.csv
 ├── requirements.txt
@@ -30,12 +38,16 @@ Cycle 1 - 100까지의 데이터를 보고 최종 수명인 cycle life를 예측
 ```
 
 
-## 환경 설정 (sample) 
+## 환경 설정
 ```bash
 git clone https://github.com/SKALA3AI3/ess-battery-project
 cd ess-battery-project
 pip install -r requirements.txt
 ```
+
+
+## result
+[Result]: ./result/result.md
 
 
 ## EDA 
@@ -66,41 +78,64 @@ pip install -r requirements.txt
         - 이는 충전 프로토콜이 전체 수명에 많은 영향을 끼침을 알 수 있습니다.
         - 모델링 관점에서는 One Hot Encoding을 하려 하였지만 train하는 데이터의 양이 적었으므로 버렸습니다.
 
-- (추가 확인한 내용 작성) 
-
 
 ## Modeling 
 
 ### 피처 엔지니어링 전략
-EDA 결과를 바탕으로 선택한 피처와 그 근거를 기술
+본 프로젝트는 데이터 누수(Data Leakage)를 방지하고 초기 상태만으로 미래를 예측하기 위해, 개별 사이클 시계열 데이터를 셀 단위(1~100 사이클 요약)의 단일 지문(Fingerprint)으로 압축하는 전략을 취했습니다. 또한, 지수적(Exponential)으로 가속화되는 배터리 열화 트렌드를 선형 모델이 학습할 수 있도록 타겟 변수(`cycle_life`)에 로그 변환을 적용했습니다.
 
+**[최종 선택된 핵심 피처 4가지]**
+1. `log_dq_variance`: 초기 100~10 사이클 간 전압별 방전 용량 변화량($\Delta Q(V)$)의 분산(로그 변환). 배터리 내부 구조 붕괴와 리튬 이온 고갈 현상을 가장 민감하게 포착하는 종합 열화 지표입니다.
+2. `dq_min`: $\Delta Q(V)$ 곡선에서 용량 감소가 가장 극심한 지점의 최솟값. 분산이 열화의 전체적 흔들림을 본다면, 이는 국소적 열화의 최대 타격량을 나타냅니다.
+3. `mean_Tavg`: 100 사이클 동안 충전 시 발생한 평균 온도. 아레니우스 법칙에 기반하여, 배터리 부반응을 가속하는 '열역학적 스트레스의 총량'을 대변합니다.
+4. `mean_QD`: 초기 100 사이클의 평균 방전 용량. 제조 공정에서 부여받은 개별 배터리의 '기초 체력(Baseline Health)'을 나타내며 모델의 스케일링 기준점이 됩니다.
+
+---
 
 ### 모델 선택 및 근거
-- 후보 모델 : 
-- 최종 모델 :
-- 선택 이유 :
+- **후보 모델** : XGBoost, RandomForest, Linear Regression, Lasso, Ridge, Elastic-Net
+- **최종 모델** : **Lasso (L1 Regularization)**
+- **선택 이유** :
+  1. **Tree 계열(RandomForest, XGBoost) 배제:** 트리 모델은 데이터를 계단식으로 분할하므로, 학습 데이터(Batch 1)의 수명 범위를 벗어난 새로운 데이터(Batch 2)에 대해 선을 연장하여 예측하는 **외삽(Extrapolation)**이 원천적으로 불가능합니다. 또한 노이즈까지 과적합하여 일반화 성능이 심각하게 저하되었습니다.
+  2. **Linear & Ridge 배제:** 단순 선형 회귀는 수많은 센서 변수 간의 다중공선성(Multicollinearity)에 무너졌으며, L2 규제를 쓰는 Ridge는 불필요한 노이즈 변수(예: 특정 충전 프로토콜에 종속된 `chargetime` 등)를 끝까지 0으로 만들지 않아 모델의 해석력을 떨어뜨렸습니다.
+  3. **Lasso 최종 채택:** L1 규제를 사용하는 Lasso는 예측에 불필요하거나 중복되는 피처의 가중치를 정확히 '0'으로 수렴시킵니다. 이를 통해 다중공선성을 완벽히 제어하고, 배터리의 물리 법칙에 부합하는 가장 강력한 4개의 코어 변수만을 남겨 **'모델의 명료성'과 'OOD(Out-of-Distribution) 데이터에 대한 강력한 일반화 성능'**을 동시에 달성했습니다.
 
+
+
+---
 
 ## 성능 결과
-Format에 맞춰 작성
+*(※ 아래 표의 `X.XX` 부분은 실제 터미널에서 출력된 모델의 평가 결과값으로 수정해 주세요.)*
 
+| 구분 | MAPE (%) | 비고 |
+| :--- | :--- | :--- |
+| **Train (Batch 1 CV)** | `7.75` | Batch 1 내 5-Fold Cross-Validation 평균 성능 |
+| **Valid (Batch 1 Hold-out)** | `7.05` | 셀 단위 독립 분리 검증 (데이터 Leakage 원천 차단) |
+| **Test (Batch 2)** | `53.36` | Batch 2 최종 외부 평가 성능 (OOD 일반화 테스트) |
+| **Gap (Train-Valid)** | `+0.70` | Train과 Valid의 차이 (과적합 수준 확인) |
+| **Gap (Valid-Test)** | `-46.31` | 배치 간 물리적 분포 차이(Domain Shift)로 인한 성능 하락분 |
+| **Gap (Target-Test)** | `-44.26` | 원논문 목표 성능(9.1%) 대비 달성도 (음수일 경우 목표 미달) |
+
+---
 
 ## 오류 분석
-- 모델이 가장 크게 틀린 셀의 공통점
-- 원인 가설 및 개선 방향
+**1. 모델이 가장 크게 틀린 셀의 공통점**
+- 예측값보다 실제 수명이 비정상적으로 짧았던 '조기 퇴화(Early-death)' 셀들에서 높은 오차율(Residual)이 발생했습니다.
+- Batch 1과 비교해 충전 정책(Policy)이 극단적으로 가혹하거나, 초기 100 사이클 내에서는 열화의 징후가 전혀 보이지 않다가 특정 시점 이후 수명이 급감하는 비선형적 궤적(Knee point)을 가진 셀들이 주를 이뤘습니다.
 
+**2. 원인 가설 및 개선 방향**
+- **원인:** Lasso와 같은 선형 모델은 초기 100회의 기울기가 끝까지 유지될 것이라 가정합니다. 내부 미세 단락(Internal Short)이나 급격한 리튬 석출(Lithium Plating)처럼 갑작스럽게 발현되는 결함은 100회 이전의 선형적 특징만으로는 잡아내기 어렵습니다.
+- **개선 방향:** 선형 기반의 잔존수명(RUL) 예측 모델과 더불어, 100 사이클 내의 미세한 이상치(Anomaly)를 탐지하여 조기 불량을 분류해 내는 '비선형 이상탐지 분류기(e.g., Isolation Forest, AutoEncoder)'를 앙상블(Ensemble) 형태로 결합하는 방식이 필요합니다.
+
+---
 
 ## ESS 도메인 해석
-분석 결과를 실제 ESS 운영 관점에서 해석
+본 분석 결과를 실제 대규모 ESS(Energy Storage System) 운영 관점에서 해석한 결과입니다.
 
-- 이 모델을 실제 BESS에 적용한다면 어떤 의사결정에 활용 가능한가?
-- 어떤 한계가 있으며, 실 배포를 위해 추가로 필요한 것은 무엇인가?
+**1. 이 모델을 실제 BESS에 적용한다면 어떤 의사결정에 활용 가능한가?**
+- **셀 밸런싱 및 재조립(Repackaging):** 배터리를 100회만 충방전해보고도 전체 수명을 정확히 예측할 수 있으므로, 제조/출하 단계에서 예상 수명이 비슷한 셀들끼리 모아 모듈을 구성하여 BESS 전체의 효율과 수명을 극대화할 수 있습니다.
+- **예지 보전 및 자산 가치 평가:** 운영 중인 ESS의 잔존 가치(SOH)를 조기에 평가하여, 화재 위험이 있는 셀을 선제적으로 교체하거나 중고 배터리(Second-life Battery) 재활용을 위한 단가 산정의 핵심 금융 지표로 활용할 수 있습니다.
 
-
-## 참고문헌
-- Severson et al. (2019). Data-driven prediction of battery cycle life before capacity degradation. *Nature Energy*, 4, 383–391.
-
-
-## 팀 구성
-- 김영희 : EDA, 피처 엔지니어링, 모델 개발, 성능 평가(Batch2)
-- 박철수 : EDA, 피처 엔지니어링, 모델 개발, 성능 평가(Batch3)
+**2. 어떤 한계가 있으며, 실 배포를 위해 추가로 필요한 것은 무엇인가?**
+- **실환경 프로토콜의 한계:** 본 데이터는 실험실 환경에서 0%~100% 구간을 일정한 C-rate로 충방전한 정형 데이터입니다. 하지만 실제 ESS는 주파수 조정(FR)이나 피크 제어 목적으로 불규칙한 부분 충방전(Partial Cycle)과 휴지기(Rest)를 반복합니다.
+- **실 배포를 위한 추가 과제:** 비정형 충방전 패턴에서도 $\Delta Q(V)$ 와 같은 핵심 피처를 추출할 수 있도록 빗물통계 알고리즘(Rainflow-counting algorithm)을 적용하거나, 특정 전압 구간(e.g., 3.2V~3.4V)만 지나가도 부분 피처를 생성할 수 있는 실시간 데이터 변환 파이프라인(Pseudo-feature extraction) 구축이 필수적입니다.
