@@ -1,1 +1,1 @@
-"""Battery cycle life prediction pipeline."""
+"""ESS battery project modules."""
