@@ -47,7 +47,7 @@ pip install -r requirements.txt
 
 
 ## result
-[Result]: ./result/result.md
+- [Result]: ./result/result.md
 
 
 ## EDA 
