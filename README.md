@@ -117,6 +117,9 @@ pip install -r requirements.txt
 | **Gap (Train-Valid)** | `+0.70` | Train과 Valid의 차이 (과적합 수준 확인) |
 | **Gap (Valid-Test)** | `-46.31` | 배치 간 물리적 분포 차이(Domain Shift)로 인한 성능 하락분 |
 | **Gap (Target-Test)** | `-44.26` | 원논문 목표 성능(9.1%) 대비 달성도 (음수일 경우 목표 미달) |
+| **Test (Batch 3)** | `12.90` | Batch 3 최종 외부 평가 성능 (OOD 일반화 테스트) |
+| **Gap (Batch2-Batch3)** | `+40.46` | Test 성능 간 비교 |
+| **Gap (Target-Test)** | `-3.80` | Batch 3 기준, 원논문 성능 비교 |
 
 ---
 
